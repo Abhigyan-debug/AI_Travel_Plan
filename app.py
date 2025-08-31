@@ -7,16 +7,13 @@ import folium
 from folium import plugins
 import time
 
-# Load environment variables
 load_dotenv()
 
-# Configure Gemini
 api_key = os.getenv('GEMINI_API_KEY')
 if api_key:
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Page config
 st.set_page_config(
     page_title="AI Travel Itinerary Generator",
     page_icon="✈️",
@@ -40,7 +37,6 @@ def parse_json_response(response_text):
         
         cleaned_text = cleaned_text.strip()
         
-        # Try to find JSON content between braces
         start_idx = cleaned_text.find('{')
         end_idx = cleaned_text.rfind('}')
         
@@ -219,7 +215,6 @@ def main():
         
         generate_btn = st.button("🚀 Generate Itinerary", type="primary", use_container_width=True)
     
-    # Main content
     if not api_key:
         st.error("⚠️ **Gemini API Key not found!** Please add your API key to the .env file.")
         st.code("GEMINI_API_KEY=your_api_key_here")
@@ -279,7 +274,6 @@ def main():
             status_text.empty()
             progress_bar.empty()
             
-            # Display Results
             display_results(summary, daily_itineraries, dining, city_map, city, budget, days)
             
         except Exception as e:
