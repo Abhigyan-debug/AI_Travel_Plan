@@ -7,13 +7,16 @@ import folium
 from folium import plugins
 import time
 
+# Load environment variables
 load_dotenv()
 
+# Configure Gemini
 api_key = os.getenv('GEMINI_API_KEY')
 if api_key:
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash')
 
+# Page config
 st.set_page_config(
     page_title="AI Travel Itinerary Generator",
     page_icon="✈️",
@@ -37,6 +40,7 @@ def parse_json_response(response_text):
         
         cleaned_text = cleaned_text.strip()
         
+        # Try to find JSON content between braces
         start_idx = cleaned_text.find('{')
         end_idx = cleaned_text.rfind('}')
         
@@ -58,22 +62,24 @@ def generate_trip_summary(city, budget, days):
     """Generate trip summary with error handling"""
     try:
         prompt = f"""
-        Create a travel summary for {city} with ${budget} budget for {days} days.
-        Respond with ONLY a JSON object in this exact format:
+        You are a travel expert. Create a comprehensive travel summary for {city} with ${budget} USD budget for {days} days.
+        
+        IMPORTANT: Respond with ONLY a valid JSON object. No additional text or explanation.
+        
         {{
             "city": "{city}",
             "total_budget": {budget},
             "duration": {days},
-            "overview": "Brief overview of what to expect in {city}",
+            "overview": "Detailed 2-3 sentence overview highlighting what makes {city} special and what travelers can expect during their {days}-day visit",
             "budget_breakdown": {{
-                "accommodation": "30-40% of budget",
-                "food": "25-35% of budget",
-                "activities": "20-30% of budget",
-                "transport": "10-15% of budget"
+                "accommodation": "${int(budget * 0.35)}",
+                "food": "${int(budget * 0.30)}",
+                "activities": "${int(budget * 0.25)}",
+                "transport": "${int(budget * 0.10)}"
             }},
-            "best_time": "Best months to visit",
-            "currency": "Local currency",
-            "highlights": ["Top attraction 1", "Top attraction 2", "Top attraction 3"]
+            "best_time": "Specific months with weather details",
+            "currency": "Local currency name and symbol",
+            "highlights": ["Must-see attraction with brief detail", "Cultural experience with context", "Local specialty or unique feature"]
         }}
         """
         
@@ -88,41 +94,72 @@ def generate_daily_itinerary(city, day, budget_per_day):
     """Generate daily itinerary with error handling"""
     try:
         prompt = f"""
-        Create day {day} itinerary for {city} with ${budget_per_day} daily budget.
-        Respond with ONLY a JSON object in this format:
+        You are a local travel guide for {city}. Create a detailed day {day} itinerary with ${budget_per_day:.0f} USD daily budget.
+        
+        Consider local culture, opening hours, travel times, and realistic scheduling.
+        
+        IMPORTANT: Respond with ONLY a valid JSON object. No additional text.
+        
         {{
             "day": {day},
-            "theme": "Day theme like 'Historical Sites' or 'Cultural Experience'",
+            "theme": "Specific theme like 'Ancient Temples & Spiritual Sites' or 'Street Food & Local Markets'",
             "activities": [
                 {{
-                    "time": "9:00 AM",
-                    "activity": "Activity name",
-                    "location": "Specific location",
+                    "time": "8:00 AM",
+                    "activity": "Specific activity name with location details",
+                    "location": "Exact location name, address or landmark",
                     "duration": "2 hours",
-                    "cost": "$10-15",
-                    "description": "Brief description"
+                    "cost": "${int(budget_per_day * 0.15)}-{int(budget_per_day * 0.25)}",
+                    "description": "Detailed description of what to expect, what to see, cultural significance"
                 }},
                 {{
-                    "time": "11:30 AM",
-                    "activity": "Next activity",
-                    "location": "Location",
-                    "duration": "1.5 hours", 
-                    "cost": "$5-10",
-                    "description": "Description"
+                    "time": "10:30 AM",
+                    "activity": "Next specific activity",
+                    "location": "Exact location",
+                    "duration": "1.5 hours",
+                    "cost": "${int(budget_per_day * 0.10)}-{int(budget_per_day * 0.20)}",
+                    "description": "What makes this special, tips for visitors"
+                }},
+                {{
+                    "time": "2:00 PM",
+                    "activity": "Afternoon activity",
+                    "location": "Specific location",
+                    "duration": "2 hours",
+                    "cost": "${int(budget_per_day * 0.15)}-{int(budget_per_day * 0.30)}",
+                    "description": "Why this is worth visiting"
+                }},
+                {{
+                    "time": "5:00 PM",
+                    "activity": "Evening activity or experience",
+                    "location": "Location name",
+                    "duration": "1.5 hours",
+                    "cost": "${int(budget_per_day * 0.10)}-{int(budget_per_day * 0.25)}",
+                    "description": "Evening experience details"
                 }}
             ],
             "meals": [
                 {{
-                    "time": "Breakfast",
-                    "restaurant": "Restaurant name",
-                    "dish": "Recommended dish",
-                    "cost": "$8-12"
+                    "time": "Breakfast (7:30 AM)",
+                    "restaurant": "Specific restaurant name with local reputation",
+                    "dish": "Traditional local breakfast dish",
+                    "cost": "${int(budget_per_day * 0.08)}-{int(budget_per_day * 0.12)}"
+                }},
+                {{
+                    "time": "Lunch (12:30 PM)",
+                    "restaurant": "Popular local restaurant name",
+                    "dish": "Regional specialty dish",
+                    "cost": "${int(budget_per_day * 0.15)}-{int(budget_per_day * 0.25)}"
+                }},
+                {{
+                    "time": "Dinner (7:00 PM)",
+                    "restaurant": "Recommended dinner spot",
+                    "dish": "Evening specialty or local favorite",
+                    "cost": "${int(budget_per_day * 0.20)}-{int(budget_per_day * 0.35)}"
                 }}
             ],
-            "transportation": "How to get around",
-            "total_cost": "Estimated total for the day"
+            "transportation": "Detailed transport options: how to get around, costs, local tips",
+            "total_cost": "${int(budget_per_day * 0.85)}-{int(budget_per_day)}"
         }}
-        Include 4-5 activities and 3 meal suggestions.
         """
         
         response = model.generate_content(prompt)
@@ -136,25 +173,91 @@ def generate_dining_recommendations(city, budget_range):
     """Generate dining recommendations"""
     try:
         prompt = f"""
-        Generate dining recommendations for {city} within {budget_range} budget.
-        Respond with ONLY a JSON object in this format:
+        You are a food expert familiar with {city}. Generate comprehensive dining recommendations within {budget_range} budget range.
+        
+        Focus on authentic local cuisine, popular spots, and hidden gems. Include vegetarian options if relevant to the culture.
+        
+        IMPORTANT: Respond with ONLY a valid JSON object. No additional text.
+        
         {{
             "restaurants": [
                 {{
-                    "name": "Restaurant name",
-                    "cuisine": "Cuisine type",
-                    "price_range": "$-$$$",
-                    "location": "Area/district",
+                    "name": "Actual restaurant name or typical establishment type",
+                    "cuisine": "Specific cuisine type (e.g., North Indian, Maharashtrian, French Bistro)",
+                    "price_range": "$" for budget, "$" for mid-range, "$$" for upscale,
+                    "location": "Specific area, district, or neighborhood",
+                    "specialty": "Signature dish with local importance or popularity",
+                    "meal_type": "breakfast",
+                    "cost_per_person": "Realistic price range in local context"
+                }},
+                {{
+                    "name": "Another restaurant name",
+                    "cuisine": "Different cuisine type",
+                    "price_range": "$",
+                    "location": "Different area",
                     "specialty": "Must-try dish",
-                    "meal_type": "breakfast/lunch/dinner/snack",
-                    "cost_per_person": "$10-15"
+                    "meal_type": "lunch",
+                    "cost_per_person": "Price range"
+                }},
+                {{
+                    "name": "Dinner restaurant",
+                    "cuisine": "Regional cuisine",
+                    "price_range": "$",
+                    "location": "Popular dining district",
+                    "specialty": "Evening specialty",
+                    "meal_type": "dinner",
+                    "cost_per_person": "Dinner prices"
+                }},
+                {{
+                    "name": "Street food or snack place",
+                    "cuisine": "Street food/Local snacks",
+                    "price_range": "$",
+                    "location": "Market or street food area",
+                    "specialty": "Popular street food item",
+                    "meal_type": "snack",
+                    "cost_per_person": "Snack prices"
+                }},
+                {{
+                    "name": "Another breakfast place",
+                    "cuisine": "Traditional breakfast",
+                    "price_range": "$",
+                    "location": "Local area",
+                    "specialty": "Traditional morning dish",
+                    "meal_type": "breakfast",
+                    "cost_per_person": "Morning meal cost"
+                }},
+                {{
+                    "name": "Lunch restaurant 2",
+                    "cuisine": "Different lunch option",
+                    "price_range": "$",
+                    "location": "Business district or tourist area",
+                    "specialty": "Popular lunch dish",
+                    "meal_type": "lunch",
+                    "cost_per_person": "Lunch pricing"
+                }},
+                {{
+                    "name": "Fine dining or special dinner",
+                    "cuisine": "Upscale local or fusion",
+                    "price_range": "$$",
+                    "location": "Upscale area",
+                    "specialty": "Signature fine dining dish",
+                    "meal_type": "dinner",
+                    "cost_per_person": "Fine dining prices"
+                }},
+                {{
+                    "name": "Tea/coffee/dessert place",
+                    "cuisine": "Cafe or sweets",
+                    "price_range": "$",
+                    "location": "Popular hangout area",
+                    "specialty": "Local dessert or beverage",
+                    "meal_type": "snack",
+                    "cost_per_person": "Cafe prices"
                 }}
             ],
-            "food_districts": ["Popular food area 1", "Popular food area 2"],
-            "local_tips": ["Food tip 1", "Food tip 2"],
-            "must_try": ["Local dish 1", "Local dish 2", "Local dish 3"]
+            "food_districts": ["Main food street or district name", "Another popular eating area", "Local market or food hub"],
+            "local_tips": ["Important cultural dining tip relevant to {city}", "Local eating customs or timing", "Payment or ordering advice for tourists"],
+            "must_try": ["Iconic local dish unique to {city}", "Regional specialty dish", "Street food that's a local favorite", "Traditional dessert or drink"]
         }}
-        Include at least 8 restaurants covering all meal types and price ranges.
         """
         
         response = model.generate_content(prompt)
@@ -215,6 +318,7 @@ def main():
         
         generate_btn = st.button("🚀 Generate Itinerary", type="primary", use_container_width=True)
     
+    # Main content
     if not api_key:
         st.error("⚠️ **Gemini API Key not found!** Please add your API key to the .env file.")
         st.code("GEMINI_API_KEY=your_api_key_here")
@@ -274,6 +378,7 @@ def main():
             status_text.empty()
             progress_bar.empty()
             
+            # Display Results
             display_results(summary, daily_itineraries, dining, city_map, city, budget, days)
             
         except Exception as e:
